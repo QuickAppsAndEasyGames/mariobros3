@@ -1,53 +1,64 @@
 <!DOCTYPE html>
-<html>
+<html lang="es">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>NES Test</title>
+    <title>NES Ultimate Loader</title>
     <script src="https://cdn.jsdelivr.net/npm/nostalgist"></script>
     <style>
-        body { background: #222; color: white; font-family: sans-serif; text-align: center; }
-        #canvas-wrapper { width: 100vw; height: 70vh; background: #000; margin-top: 10px; }
-        .controls { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; padding: 20px; max-width: 300px; margin: 0 auto; }
-        button { padding: 15px; background: #444; color: white; border: 1px solid #666; touch-action: none; }
-        button:active { background: #888; }
+        body { background: #1a1a1a; color: white; font-family: sans-serif; margin: 0; text-align: center; overflow: hidden; }
+        #status { background: #333; padding: 10px; font-size: 14px; border-bottom: 1px solid #555; }
+        #canvas-wrapper { width: 100vw; height: 60vh; background: #000; }
+        .controls { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; padding: 15px; max-width: 320px; margin: 0 auto; }
+        button { padding: 20px; background: #444; color: white; border: none; border-radius: 8px; font-weight: bold; touch-action: none; -webkit-tap-highlight-color: transparent; }
+        button:active { background: #777; }
+        .btn-a { background: #ff4444; }
+        .btn-b { background: #cc0000; }
     </style>
 </head>
 <body>
-    <h3>Estado: <span id="status">Cargando...</span></h3>
+    <div id="status">Iniciando sistema...</div>
     <div id="canvas-wrapper"></div>
 
     <div class="controls">
         <div></div><button id="up">UP</button><div></div>
         <button id="left">LEFT</button><button id="start">START</button><button id="right">RIGHT</button>
         <div></div><button id="down">DOWN</button><div></div>
-        <button id="b" style="color: red;">B</button><div></div><button id="a">A</button>
+        <button id="b" class="btn-b">B</button><div></div><button id="a" class="btn-a">A</button>
     </div>
 
     <script>
-        async function run() {
-            const status = document.getElementById('status');
+        const status = document.getElementById('status');
+        
+        async function botaApp() {
             try {
-                status.innerText = "Buscando archivo smb3.nes...";
+                status.innerText = "Buscando juego en el servidor...";
                 
+                // Intentamos cargar el archivo estándar
                 const emu = await Nostalgist.nes('smb3.nes');
                 
-                status.innerText = "¡Juego Corriendo!";
-                status.style.color = "#0f0";
+                status.innerText = "¡Juego cargado! Presiona START";
+                status.style.color = "#44ff44";
 
-                const btns = ['up','down','left','right','a','b','start'];
-                btns.forEach(id => {
-                    const el = document.getElementById(id);
+                const keys = ['up','down','left','right','a','b','start'];
+                keys.forEach(id => {
+                    const btn = document.getElementById(id);
                     const action = 'press' + id.charAt(0).toUpperCase() + id.slice(1);
-                    el.onpointerdown = (e) => { e.preventDefault(); emu[action](); };
+                    const handler = (e) => { e.preventDefault(); emu[action](); };
+                    btn.onpointerdown = handler;
                 });
             } catch (err) {
-                status.innerText = "ERROR: " + err.message;
-                status.style.color = "red";
+                status.innerText = "Error: " + err.message;
+                status.style.color = "#ff4444";
                 console.error(err);
+                
+                if(err.message.includes('404')) {
+                    status.innerText = "Error 404: No encuentro el archivo 'smb3.nes'. Revisa el nombre en GitHub.";
+                }
             }
         }
-        run();
+
+        botaApp();
     </script>
 </body>
 </html>
