@@ -23,19 +23,22 @@
 <body>
 
     <div id="splash1" class="splash"><img src="https://storage.appsrentables.com/66f1edfe82e4c204d797f55a/apps/nes/mariobros3/nintendo.jpg"></div>
+    
     <div id="splash2" class="splash" style="opacity: 0; display: none;"><img src="https://storage.appsrentables.com/66f1edfe82e4c204d797f55a/apps/nes/mariobros3/supermariobros3.jpg"></div>
 
     <div id="game-container" style="display:none">
         <div id="canvas-wrapper"></div>
-        <div class="absolute top-6 left-6 flex gap-2 z-30">
-            <button onclick="emu.saveState('s1')" class="bg-red-600 text-white px-4 py-2 rounded text-xs font-bold">SAVE</button>
-            <button onclick="emu.loadState('s1')" class="bg-blue-600 text-white px-4 py-2 rounded text-xs font-bold ml-2">LOAD</button>
+        
+        <div class="absolute top-6 left-6 flex gap-2 z-30 pointer-events-auto">
+            <button onclick="window.emu?.saveState('s1')" class="bg-red-600 text-white px-4 py-2 rounded text-xs font-bold shadow-lg">SAVE</button>
+            <button onclick="window.emu?.loadState('s1')" class="bg-blue-600 text-white px-4 py-2 rounded text-xs font-bold ml-2 shadow-lg">LOAD</button>
         </div>
+
         <div class="absolute inset-0 flex flex-col justify-end p-8 pointer-events-none">
             <div class="flex justify-between items-end pointer-events-auto">
                 <div class="dpad-grid">
                     <div></div><div class="btn-retro btn-rect" id="up">↑</div><div></div>
-                    <div class="btn-retro btn-rect" id="left">←</div><div></div><div class="btn-retro btn-rect" id="right">→</div>
+                    <div class="btn-retro btn-rect" id="left">←</div><div class="bg-transparent"></div><div class="btn-retro btn-rect" id="right">→</div>
                     <div></div><div class="btn-retro btn-rect" id="down">↓</div><div></div>
                 </div>
                 <div class="flex flex-col gap-4 mb-4">
@@ -51,39 +54,61 @@
     </div>
 
     <script>
-        let emu;
+        window.emu = null;
+
         window.onload = () => {
+            // Secuencia de imágenes (3s y 5s)
             setTimeout(() => {
-                document.getElementById('splash1').style.opacity = '0';
+                const s1 = document.getElementById('splash1');
+                const s2 = document.getElementById('splash2');
+                s1.style.opacity = '0';
                 setTimeout(() => {
-                    document.getElementById('splash1').style.display = 'none';
-                    const s2 = document.getElementById('splash2');
+                    s1.style.display = 'none';
                     s2.style.display = 'flex';
                     setTimeout(() => s2.style.opacity = '1', 50);
+                    
                     setTimeout(() => {
                         s2.style.opacity = '0';
                         setTimeout(() => {
                             s2.style.display = 'none';
                             document.getElementById('game-container').style.display = 'block';
-                            init();
+                            initEmulator();
                         }, 1000);
                     }, 5000);
                 }, 1000);
             }, 3000);
         };
 
-        async function init() {
+        async function initEmulator() {
             try {
-                emu = await Nostalgist.nes('smb3.nes');
+                // Forzamos la descarga del buffer para asegurar compatibilidad
+                const response = await fetch('smb3.nes');
+                if (!response.ok) throw new Error("No se pudo obtener el archivo .nes");
+                const buffer = await response.arrayBuffer();
+
+                window.emu = await Nostalgist.nes({
+                    rom: { name: 'smb3.nes', data: new Uint8Array(buffer) },
+                    element: document.querySelector('#canvas-wrapper')
+                });
+
+                // Configurar botones
                 const keys = ['up','down','left','right','a','b','select','start'];
                 keys.forEach(k => {
                     const el = document.getElementById(k);
-                    const f = 'press' + k.charAt(0).toUpperCase() + k.slice(1);
-                    const h = (e) => { e.preventDefault(); emu[f](); };
-                    el.addEventListener('touchstart', h);
-                    el.addEventListener('mousedown', h);
+                    const func = 'press' + k.charAt(0).toUpperCase() + k.slice(1);
+                    const handler = (e) => { 
+                        e.preventDefault(); 
+                        if (window.emu) window.emu[func](); 
+                    };
+                    el.addEventListener('touchstart', handler, {passive: false});
+                    el.addEventListener('mousedown', handler);
                 });
-            } catch (e) { alert("Error al cargar smb3.nes. Asegúrate de que el archivo esté en el repositorio."); }
+
+                console.log("Juego cargado con éxito.");
+            } catch (e) {
+                console.error(e);
+                alert("Error: El navegador no puede procesar el archivo. Intenta refrescar con Ctrl+F5.");
+            }
         }
     </script>
 </body>
