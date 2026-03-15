@@ -1,139 +1,53 @@
 <!DOCTYPE html>
-<html lang="es">
+<html>
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>Super Mario Bros 3</title>
-    <script src="https://cdn.tailwindcss.com"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>NES Test</title>
     <script src="https://cdn.jsdelivr.net/npm/nostalgist"></script>
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <style>
-        body, html { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; background: #000; touch-action: none; }
-        #canvas-wrapper { position: absolute; inset: 0; display: flex; justify-content: center; align-items: center; z-index: 5; }
-        canvas { width: 100% !important; height: 100% !important; object-fit: contain; image-rendering: pixelated; }
-        
-        /* Pantallas de Carga */
-        .splash { position: absolute; inset: 0; z-index: 50; display: flex; align-items: center; justify-content: center; background: #000; transition: opacity 0.8s; }
-        .splash img { max-width: 100%; max-height: 100%; object-fit: contain; }
-
-        /* Controles - Forzamos que siempre se vean sobre el juego */
-        #ui-layer { position: absolute; inset: 0; z-index: 100; pointer-events: none; display: none; }
-        .touch-zone { height: 100%; display: flex; flex-direction: column; justify-content: flex-end; padding: 20px; }
-        .controls-row { display: flex; justify-content: space-between; align-items: flex-end; pointer-events: auto; }
-
-        .btn-retro { 
-            background: rgba(255,255,255,0.15); border: 2px solid rgba(255,255,255,0.3); 
-            color: white; display: flex; align-items: center; justify-content: center;
-            user-select: none; -webkit-tap-highlight-color: transparent;
-        }
-        .btn-retro:active { background: rgba(255,255,255,0.4); transform: scale(0.95); }
-        
-        .dpad-grid { display: grid; grid-template-columns: repeat(3, 55px); grid-template-rows: repeat(3, 55px); }
-        .btn-circle { width: 70px; height: 70px; border-radius: 50%; font-size: 24px; font-weight: bold; }
-        .btn-rect { width: 55px; height: 55px; border-radius: 8px; }
-        .btn-sys { width: 65px; height: 24px; font-size: 10px; border-radius: 12px; background: #333; font-weight: bold; }
+        body { background: #222; color: white; font-family: sans-serif; text-align: center; }
+        #canvas-wrapper { width: 100vw; height: 70vh; background: #000; margin-top: 10px; }
+        .controls { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; padding: 20px; max-width: 300px; margin: 0 auto; }
+        button { padding: 15px; background: #444; color: white; border: 1px solid #666; touch-action: none; }
+        button:active { background: #888; }
     </style>
 </head>
 <body>
-
-    <div id="splash1" class="splash">
-        <img src="https://storage.appsrentables.com/66f1edfe82e4c204d797f55a/apps/nes/mariobros3/nintendo.jpg">
-    </div>
-
-    <div id="splash2" class="splash" style="opacity: 0; display: none;">
-        <img src="https://storage.appsrentables.com/66f1edfe82e4c204d797f55a/apps/nes/mariobros3/supermariobros3.jpg">
-    </div>
-
+    <h3>Estado: <span id="status">Cargando...</span></h3>
     <div id="canvas-wrapper"></div>
 
-    <div id="ui-layer">
-        <div class="absolute top-6 left-6 flex gap-2">
-            <button onclick="saveGame()" class="bg-red-600 text-white px-3 py-1 rounded text-[10px] font-bold shadow-md">SAVE</button>
-            <button onclick="loadGame()" class="bg-blue-600 text-white px-3 py-1 rounded text-[10px] font-bold shadow-md">LOAD</button>
-        </div>
-
-        <div class="touch-zone">
-            <div class="controls-row">
-                <div class="dpad-grid">
-                    <div></div><div class="btn-retro btn-rect" id="up"><i class="fas fa-caret-up"></i></div><div></div>
-                    <div class="btn-retro btn-rect" id="left"><i class="fas fa-caret-left"></i></div>
-                    <div></div>
-                    <div class="btn-retro btn-rect" id="right"><i class="fas fa-caret-right"></i></div>
-                    <div></div><div class="btn-retro btn-rect" id="down"><i class="fas fa-caret-down"></i></div><div></div>
-                </div>
-
-                <div class="flex flex-col gap-3 mb-6">
-                    <div class="btn-retro btn-sys" id="select">SELECT</div>
-                    <div class="btn-retro btn-sys" id="start">START</div>
-                </div>
-
-                <div class="flex gap-4">
-                    <div class="btn-retro btn-circle text-red-500" id="b">B</div>
-                    <div class="btn-retro btn-circle text-white" id="a">A</div>
-                </div>
-            </div>
-        </div>
+    <div class="controls">
+        <div></div><button id="up">UP</button><div></div>
+        <button id="left">LEFT</button><button id="start">START</button><button id="right">RIGHT</button>
+        <div></div><button id="down">DOWN</button><div></div>
+        <button id="b" style="color: red;">B</button><div></div><button id="a">A</button>
     </div>
 
     <script>
-        let emu = null;
-
-        // Secuencia de inicio
-        window.onload = () => {
-            setTimeout(() => {
-                const s1 = document.getElementById('splash1');
-                const s2 = document.getElementById('splash2');
-                s1.style.opacity = '0';
-                setTimeout(() => {
-                    s1.style.display = 'none';
-                    s2.style.display = 'flex';
-                    setTimeout(() => s2.style.opacity = '1', 50);
-                    
-                    setTimeout(() => {
-                        s2.style.opacity = '0';
-                        setTimeout(() => {
-                            s2.style.display = 'none';
-                            // Mostramos los controles justo antes de cargar el juego
-                            document.getElementById('ui-layer').style.display = 'block';
-                            iniciarJuego();
-                        }, 800);
-                    }, 4000); // 4 segundos de Mario Cover
-                }, 800);
-            }, 2500); // 2.5 segundos de Nintendo
-        };
-
-        async function iniciarJuego() {
+        async function run() {
+            const status = document.getElementById('status');
             try {
-                // MÉTODO GITHUB PAGES: Carga directa
-                // Es vital que el archivo se llame smb3.nes en minúsculas
-                emu = await Nostalgist.nes('smb3.nes');
+                status.innerText = "Buscando archivo smb3.nes...";
                 
-                configurarBotones();
-                console.log("Juego iniciado correctamente");
+                const emu = await Nostalgist.nes('smb3.nes');
+                
+                status.innerText = "¡Juego Corriendo!";
+                status.style.color = "#0f0";
+
+                const btns = ['up','down','left','right','a','b','start'];
+                btns.forEach(id => {
+                    const el = document.getElementById(id);
+                    const action = 'press' + id.charAt(0).toUpperCase() + id.slice(1);
+                    el.onpointerdown = (e) => { e.preventDefault(); emu[action](); };
+                });
             } catch (err) {
+                status.innerText = "ERROR: " + err.message;
+                status.style.color = "red";
                 console.error(err);
-                alert("Error crítico: Verifica que el archivo se llame smb3.nes y esté subido correctamente.");
             }
         }
-
-        function configurarBotones() {
-            const mappings = ['up', 'down', 'left', 'right', 'a', 'b', 'select', 'start'];
-            mappings.forEach(key => {
-                const btn = document.getElementById(key);
-                const action = 'press' + key.charAt(0).toUpperCase() + key.slice(1);
-                
-                const press = (e) => {
-                    e.preventDefault();
-                    if (emu) emu[action]();
-                };
-                
-                btn.addEventListener('touchstart', press, {passive: false});
-                btn.addEventListener('mousedown', press);
-            });
-        }
-
-        function saveGame() { if(emu) emu.saveState('mario3_save'); }
-        function loadGame() { if(emu) emu.loadState('mario3_save'); }
+        run();
     </script>
 </body>
 </html>
