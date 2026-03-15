@@ -2,32 +2,34 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>NES Emulator - Pro Edition</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>NES Emulator - Fixed</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/nostalgist"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <style>
-        body { background-color: #0a0a0a; color: white; touch-action: none; overflow: hidden; font-family: system-ui, sans-serif; }
-        #game-screen { width: 100vw; height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; }
-        canvas { max-width: 100%; max-height: 70%; object-fit: contain; image-rendering: pixelated; box-shadow: 0 0 50px rgba(0,0,0,0.5); }
-        .controller { width: 100%; max-width: 500px; padding: 20px; position: fixed; bottom: 0; left: 50%; transform: translateX(-50%); user-select: none; }
-        .btn-retro { background: #262626; border: 2px solid #404040; border-radius: 12px; display: flex; align-items: center; justify-content: center; active: scale(0.95); transition: all 0.1s; -webkit-tap-highlight-color: transparent; }
-        .btn-retro:active { background: #525252; border-color: #737373; }
-        .dpad-grid { display: grid; grid-template-columns: repeat(3, 60px); grid-template-rows: repeat(3, 60px); gap: 4px; }
-        .action-btns { display: flex; gap: 15px; }
-        .btn-round { width: 70px; height: 70px; border-radius: 50%; font-weight: bold; font-size: 20px; box-shadow: 0 4px 0 #171717; }
-        .btn-sys { width: 60px; height: 25px; border-radius: 20px; font-size: 9px; text-transform: uppercase; font-weight: bold; background: #171717; }
+        body, html { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; background: #000; touch-action: none; font-family: sans-serif; }
+        /* El contenedor principal debe ser visible y tener tamaño */
+        #game-box { width: 100%; height: 100%; display: flex; flex-direction: column; align-items: center; }
+        canvas { width: 100% !important; height: auto !important; max-height: 65vh; object-fit: contain; image-rendering: pixelated; margin-top: 20px; }
+        
+        .controller { width: 100%; max-width: 450px; position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%); padding: 0 20px; user-select: none; z-index: 100; }
+        .btn-retro { background: #222; border: 2px solid #444; border-radius: 10px; display: flex; align-items: center; justify-content: center; color: white; transition: 0.1s; -webkit-tap-highlight-color: transparent; }
+        .btn-retro:active { background: #555; transform: scale(0.92); }
+        .dpad { display: grid; grid-template-columns: repeat(3, 55px); grid-template-rows: repeat(3, 55px); gap: 5px; }
+        .btn-circle { width: 70px; height: 70px; border-radius: 50%; font-weight: bold; font-size: 20px; border: 3px solid #333; }
+        .btn-sys { width: 60px; height: 26px; border-radius: 13px; font-size: 9px; font-weight: bold; background: #111; }
     </style>
 </head>
 <body>
 
-    <div id="game-screen">
-        <div id="loading-text" class="mb-4 text-zinc-500 animate-pulse">Iniciando emulador...</div>
-        <div id="emulator-container" class="w-full flex justify-center"></div>
+    <div id="game-box">
+        <div id="status" class="text-zinc-500 text-xs mt-4">Esperando archivo smb3.nes...</div>
+        
+        <div id="canvas-destination" class="w-full flex justify-center"></div>
 
-        <div class="controller flex justify-between items-end pb-10">
-            <div class="dpad-grid">
+        <div class="controller flex justify-between items-end">
+            <div class="dpad">
                 <div></div><button class="btn-retro" id="up"><i class="fas fa-chevron-up"></i></button><div></div>
                 <button class="btn-retro" id="left"><i class="fas fa-chevron-left"></i></button>
                 <div class="bg-transparent"></div>
@@ -35,59 +37,50 @@
                 <div></div><button class="btn-retro" id="down"><i class="fas fa-chevron-down"></i></button><div></div>
             </div>
 
-            <div class="flex flex-col gap-4 mb-4">
-                <button class="btn-retro btn-sys" id="select">Select</button>
-                <button class="btn-retro btn-sys" id="start">Start</button>
+            <div class="flex flex-col gap-3 mb-2">
+                <button class="btn-retro btn-sys" id="select">SELECT</button>
+                <button class="btn-retro btn-sys" id="start">START</button>
             </div>
 
-            <div class="action-btns">
-                <button class="btn-retro btn-round text-red-500 border-red-900/50" id="b">B</button>
-                <button class="btn-retro btn-round text-zinc-100 border-zinc-700" id="a">A</button>
+            <div class="flex gap-4">
+                <button class="btn-retro btn-circle text-red-500" id="b">B</button>
+                <button class="btn-retro btn-circle text-white" id="a">A</button>
             </div>
         </div>
     </div>
 
     <script>
-        let nes;
-
-        async function init() {
-            const label = document.getElementById('loading-text');
+        async function runGame() {
+            const status = document.getElementById('status');
+            const dest = document.getElementById('canvas-destination');
+            
             try {
-                label.innerText = "Cargando archivo smb3.nes...";
-                
-                // Cargamos el emulador igual que en la web de Vercel
-                nes = await Nostalgist.nes({
+                // Forzamos al emulador a usar exactamente este elemento
+                const n = await Nostalgist.nes({
                     rom: 'smb3.nes',
-                    element: document.querySelector('#emulator-container')
+                    element: dest 
                 });
 
-                label.style.display = 'none';
-                setupControls();
+                status.style.display = 'none';
+                
+                // Configuración de botones
+                const btns = ['up', 'down', 'left', 'right', 'a', 'b', 'select', 'start'];
+                btns.forEach(id => {
+                    const el = document.getElementById(id);
+                    const action = 'press' + id.charAt(0).toUpperCase() + id.slice(1);
+                    const handler = (e) => { e.preventDefault(); n[action](); };
+                    el.addEventListener('touchstart', handler, {passive: false});
+                    el.addEventListener('mousedown', handler);
+                });
+
             } catch (err) {
-                label.innerText = "Error: " + err.message;
-                label.classList.remove('animate-pulse');
-                label.classList.add('text-red-500');
+                status.innerText = "Error: " + err.message;
+                status.className = "text-red-600 mt-4 text-xs";
             }
         }
 
-        function setupControls() {
-            const buttons = ['up', 'down', 'left', 'right', 'a', 'b', 'select', 'start'];
-            buttons.forEach(id => {
-                const el = document.getElementById(id);
-                const action = 'press' + id.charAt(0).toUpperCase() + id.slice(1);
-                
-                const handler = (e) => {
-                    e.preventDefault();
-                    if (nes) nes[action]();
-                };
-
-                el.addEventListener('touchstart', handler, { passive: false });
-                el.addEventListener('mousedown', handler);
-            });
-        }
-
-        // Ejecutar al cargar la página
-        window.addEventListener('DOMContentLoaded', init);
+        // Iniciamos cuando todo el HTML esté cargado
+        window.addEventListener('load', runGame);
     </script>
 </body>
 </html>
